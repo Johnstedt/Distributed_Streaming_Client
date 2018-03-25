@@ -1,0 +1,2 @@
+# Distributed_Streaming_Client
+mplementation of a simple client that pulls data (pixel blocks) for a streaming video application, and (from the client's point of view) analyze the performance of the system. The video data is provided by a distributed video application consisting of a set of streaming services with interfaces for accessing video data in pixel blocks. To facilitate analysis of the system, a strictly hierarchical format for the video data is used. 
