@@ -11,7 +11,7 @@
     <property name="src" location="src"/>
     <property name="build" location="build"/>
     <property name="jarfile" location="client.jar"/>
-    <property name="mainclass" value="client.Client"/>
+    <property name="mainclass" value="client.ExampleClient"/>
 
     <!-- classpath -->
     <path id="classpath.lib">
@@ -46,6 +46,7 @@
 
     <target name="dist" depends="compile" description="generate distribution">
         <jar jarfile="${jarfile}" basedir="${build}">
+            <zipgroupfileset dir="lib" includes="5dv186a1.jar" />
             <manifest>
                 <attribute name="Main-Class" value="${mainclass}"/>
             </manifest>
