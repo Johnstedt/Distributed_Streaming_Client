@@ -1,10 +1,11 @@
 package client;
 
-import java.io.IOException;
-import java.net.SocketTimeoutException;
 import ki.types.ds.Block;
 import ki.types.ds.StreamInfo;
 import se.umu.cs._5dv186.a1.client.StreamServiceClient;
+
+import java.io.IOException;
+import java.net.SocketTimeoutException;
 
 public interface FrameAccessor
 {
@@ -55,7 +56,7 @@ public interface FrameAccessor
 
     //----------------------------------------------------------
     //----------------------------------------------------------
-    public interface Factory
+        public static interface Factory
     {
         //----------------------------------------------------------
         public FrameAccessor getFrameAccessor (StreamServiceClient client, String stream);
