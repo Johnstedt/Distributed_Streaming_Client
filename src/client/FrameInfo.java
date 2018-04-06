@@ -32,7 +32,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
     Thread t = new Thread() {
       @Override
       public void run() {
-        threadruns(c);
+        threadruns(c, stream);
       }
     };
     t.start();
@@ -63,22 +63,15 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
   }
 
 
-  public void threadruns(StreamServiceClient c) {
+  public void threadruns(StreamServiceClient c, String stream) {
     System.out.println("new thread in stream"+stream);
     while(true) {
 
       available.acquireUninterruptibly();
 
-      //try {
         int frameIndex = currentFrame.incrementAndGet();
-        //Frame f = new Frame();
-        //f.get(frameIndex, );
-        //frames.put(frameIndex, f);
-      //} catch (IOException e) {
-      //  e.printStackTrace();
-      //}
-
-
+        Frame f = new StreamFrame(stream, c, frameIndex);
+        frames.put(frameIndex, f);
 
 
     }
