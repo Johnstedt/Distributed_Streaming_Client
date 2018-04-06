@@ -1,29 +1,60 @@
 package client;
 
-import ki.types.ds.Block;
 import ki.types.ds.StreamInfo;
 import se.umu.cs._5dv186.a1.client.StreamServiceClient;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class FrameInfo  extends PerformanceStatistics implements FrameAccessor, FrameAccessor.Frame {
-
-
-  private StreamServiceClient clients[];
+public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
   private String stream;
+  private LinkedList<StreamServiceClient> clients;
+  private HashMap<Integer, Frame> frames;
+  private AtomicInteger currentFrame;
+  private final Semaphore available = new Semaphore(100, true);
+
+  public FrameInfo(String stream){
+    System.out.println("Creating FrameInfo for stream: "+stream);
+    this.stream = stream;
+    clients = new LinkedList<>();
+    frames = new HashMap<>();
+    currentFrame = new AtomicInteger(1);
+
+  }
+
+  public void addClient(StreamServiceClient c) {
+    clients.add(c);
+    System.out.println("added thread for "+stream);
+    Thread t = new Thread() {
+      @Override
+      public void run() {
+        threadruns(c);
+      }
+    };
+    t.start();
+    //TODO: Make a run for it ^^ aka hämta frames.
+
+  }
+
 
   /* Frame */
   @Override
   public StreamInfo getStreamInfo() throws IOException, SocketTimeoutException {
-
     return null;
   }
 
   @Override
   public Frame getFrame(int frame) throws IOException, SocketTimeoutException {
-    return null;
+    //TODO IF not exists = block.
+    available.release();
+    return frames.get(frame);
+
   }
+
 
   /* Statistics */
   @Override
@@ -32,9 +63,24 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor, 
   }
 
 
-  @Override
-  public Block getBlock(int blockX, int blockY) throws IOException, SocketTimeoutException {
-    return null;
-  }
+  public void threadruns(StreamServiceClient c) {
+    System.out.println("new thread in stream"+stream);
+    while(true) {
 
+      available.acquireUninterruptibly();
+
+      //try {
+        int frameIndex = currentFrame.incrementAndGet();
+        //Frame f = new Frame();
+        //f.get(frameIndex, );
+        //frames.put(frameIndex, f);
+      //} catch (IOException e) {
+      //  e.printStackTrace();
+      //}
+
+
+
+
+    }
+  }
 }

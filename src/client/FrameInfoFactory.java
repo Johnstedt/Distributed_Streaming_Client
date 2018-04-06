@@ -6,47 +6,54 @@ import java.util.HashMap;
 import java.util.LinkedList;
 
 public class FrameInfoFactory implements FrameAccessor.Factory {
-  private HashMap<String, FrameAccessorClient> sFA = new HashMap<>();
-
   public class FrameAccessorClient {
-    FrameAccessor frameAccessor;
+    FrameInfo frameAccessor;
     LinkedList<StreamServiceClient> streamServiceClients;
 
-    FrameAccessorClient(FrameAccessor frameAccessor) {
+    FrameAccessorClient(FrameInfo frameAccessor) {
       this.frameAccessor = frameAccessor;
       this.streamServiceClients = new LinkedList<>();
     }
 
-    FrameAccessorClient(FrameAccessor frameAccessor, StreamServiceClient scc) {
+    FrameAccessorClient(FrameInfo frameAccessor, StreamServiceClient scc) {
       this(frameAccessor);
       addClient(scc);
     }
 
     void addClient(StreamServiceClient ssc) {
       streamServiceClients.add(ssc);
+      frameAccessor.addClient(ssc);
     }
+  }
+
+  private static FrameInfoFactory instance = null;
+  private HashMap<String, FrameAccessorClient> sFA = new HashMap<>();
+  protected FrameInfoFactory() {
+
+  }
+  public static FrameInfoFactory getInstance() {
+    if (instance == null) {
+      instance = new FrameInfoFactory();
+    }
+    return instance;
   }
 
   @Override
   public FrameAccessor getFrameAccessor(StreamServiceClient client, String stream) {
     if (!sFA.containsKey(stream)) {
-      FrameInfo fi = new FrameInfo();
+      FrameInfo fi = new FrameInfo(stream);
       FrameAccessorClient fac = new FrameAccessorClient(fi, client);
       sFA.put(stream, fac);
     }
+    sFA.get(stream).addClient(client);
     return sFA.get(stream).frameAccessor;
   }
 
   @Override
   public FrameAccessor getFrameAccessor(StreamServiceClient[] clients, String stream) {
-    if (!sFA.containsKey(stream)) {
-      FrameInfo fi = new FrameInfo();
-      FrameAccessorClient fac = new FrameAccessorClient(fi);
-      sFA.put(stream, fac);
-    }
     FrameAccessorClient fac = sFA.get(stream);
     for (StreamServiceClient c : clients) {
-      fac.addClient(c);
+      getFrameAccessor(c, stream);
     }
     return fac.frameAccessor;
   }

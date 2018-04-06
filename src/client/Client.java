@@ -1,15 +1,12 @@
 package client;
 
-import ki.types.ds.StreamInfo;
 import se.umu.cs._5dv186.a1.client.DefaultStreamServiceClient;
 import se.umu.cs._5dv186.a1.client.StreamServiceClient;
 import se.umu.cs._5dv186.a1.client.StreamServiceDiscovery;
 
-import java.io.IOException;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
-import java.util.LinkedList;
 
 public class Client {
   public static void main (String[] args) throws SocketException, UnknownHostException {
@@ -28,6 +25,15 @@ public class Client {
 
     /* Get all info */
     final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
+    for (Integer t: streams) {
+      for (int i = 0; i < threads; i++) {
+        System.out.println(i +" "+t);
+        String h = hosts[i % hosts.length];
+        StreamServiceClient c = DefaultStreamServiceClient.bind(h, timeout, username);
+        FrameInfoFactory.getInstance().getFrameAccessor(c, "stream"+t);
+      }
+    }
+    /*
     System.out.println("Hosts: " + Arrays.toString(hosts));
     LinkedList<StreamServiceClient> clients = new LinkedList<>();
     for (String h : hosts) {
@@ -43,7 +49,7 @@ public class Client {
         e.printStackTrace();
       }
     }
-
+    */
 
 
 
