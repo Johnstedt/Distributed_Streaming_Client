@@ -41,9 +41,11 @@ public final class ExampleClient
 
             listStreamInfo(client);
 
-            int nr = 100;
+            PerformanceStatistics PS = new PerformanceStatistics();
+
+            int nr = 10;
             int count = 0;
-            String stream = "stream1";
+            String stream = "stream3";
             int frame = 0;
             int blockX = 0;
             int blockY = 0;
@@ -55,14 +57,18 @@ public final class ExampleClient
                     Block block = client.getBlock(stream,frame,blockX,blockY);
                     long t2 = System.currentTimeMillis();
                     System.out.println("block received from server in " + (t2 - t1) + " ms");
+                    PS.addPacketLatency("harry", t2-t1);
                     count++;
                 }
                 catch (SocketTimeoutException e)
                 {
+                    PS.addTimeOut("harry");
                     System.out.println("socket timeout");
                 }
             }
             System.out.println("received " + count + " / " + nr);
+            System.out.println("Mr Harry: " + PS.getPacketLatency("harry"));
+            System.out.println("Mr Harry: " + PS.getPacketDropRate("harry"));
         }
         catch (Exception e)
         {

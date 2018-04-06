@@ -2,13 +2,16 @@ package client;
 
 import ki.types.ds.Block;
 import ki.types.ds.StreamInfo;
+import se.umu.cs._5dv186.a1.client.StreamServiceClient;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 
-public class FrameInfo implements FrameAccessor, FrameAccessor.Frame, FrameAccessor.PerformanceStatistics{
+public class FrameInfo  extends PerformanceStatistics implements FrameAccessor, FrameAccessor.Frame {
 
 
+  private StreamServiceClient clients[];
+  private String stream;
 
   /* Frame */
   @Override
@@ -34,23 +37,4 @@ public class FrameInfo implements FrameAccessor, FrameAccessor.Frame, FrameAcces
     return null;
   }
 
-  @Override
-  public double getPacketDropRate(String host) {
-    return 0;
-  }
-
-  @Override
-  public double getPacketLatency(String host) {
-    return 0;
-  }
-
-  @Override
-  public double getFrameThroughput() {
-    return 0;
-  }
-
-  @Override
-  public double getBandwidthUtilization() {
-    return 0;
-  }
 }

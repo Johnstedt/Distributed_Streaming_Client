@@ -8,12 +8,16 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
 
     private HashMap<String, List<Long>> latency;
     private HashMap<String, Integer> dropRate;
+    private long start;
+    private long stop;
+    private long frames;
+    private int x, y;
 
     public PerformanceStatistics() {
         latency = new HashMap<>();
         dropRate = new HashMap<>();
+        frames = 0;
     }
-
 
     @Override
     public double getPacketDropRate(String host) {
@@ -37,9 +41,6 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
             return -1;
         }
 
-        System.out.println("FAILURES: "+failures);
-        System.out.println("SUCCESSESS: "+successes);
-
         return (double)successes / ((double)failures + (double)successes) * 100;
     }
 
@@ -57,15 +58,34 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
 
     @Override
     public double getFrameThroughput() {
-        return 0;
+
+        return (double)frames / ((double)(stop - start) / 1000);
     }
 
     @Override
     public double getBandwidthUtilization() {
-        return 0;
+
+        return getFrameThroughput() * 768 * x  * y;
     }
 
-    public void addPacketLatency(String host, long timeInMilliseconds){
+    void setDim(int x, int y){
+        this.x = x;
+        this.y = y;
+    }
+
+    void startTime(){
+        start = System.currentTimeMillis();
+    }
+
+    void stopTime() {
+        stop = System.currentTimeMillis();
+    }
+
+    void addFrame(){
+        frames++;
+    }
+
+    void addPacketLatency(String host, long timeInMilliseconds){
 
         List<Long> l;
         if(latency.containsKey(host)) {
@@ -79,7 +99,7 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
         latency.put(host, l);
     }
 
-    public void addTimeOut(String host){
+    void addTimeOut(String host){
 
         int i = dropRate.getOrDefault(host, 0);
 
