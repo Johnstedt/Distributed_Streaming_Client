@@ -2,22 +2,24 @@ package client;
 
 import ki.types.ds.StreamInfo;
 import se.umu.cs._5dv186.a1.client.StreamServiceClient;
+import sun.awt.Mutex;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
   private String stream;
   private LinkedList<StreamServiceClient> clients;
   private HashMap<Integer, StreamFrame> frames;
-  private AtomicInteger currentBlock;
-  private Semaphore available = null;
   private StreamInfo streamInfo;
   private LinkedList<Thread> threads = new LinkedList<>();
+
+
+  Mutex get = new Mutex();
+  private int readuntil = 0;
+  private int current = 0;
 
   public FrameInfo(String stream){
     super();
@@ -26,13 +28,11 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
     this.stream = stream;
     clients = new LinkedList<>();
     frames = new HashMap<>();
-    currentBlock = new AtomicInteger(1);
 
   }
 
   public void addClient(StreamServiceClient c) {
     clients.add(c);
-    System.out.println("added thread for "+stream);
     Thread t = new Thread() {
       @Override
       public void run() {
@@ -55,7 +55,9 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
   @Override
   public Frame getFrame(int frame) throws IOException, SocketTimeoutException {
     //TODO IF not exists = block.
-    available.release(streamInfo.getHeightInBlocks()*streamInfo.getWidthInBlocks());
+    get.lock();
+    readuntil += streamInfo.getHeightInBlocks()*streamInfo.getWidthInBlocks();
+    get.unlock();
     return frames.get(frame);
 
   }
@@ -65,36 +67,45 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
   @Override
   public PerformanceStatistics getPerformanceStatistics() {
     stopTime();
-    for (Thread t : threads) {
-      t.interrupt();
-      try {
-        t.join();
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
-    }
+    threads.forEach(Thread::interrupt);
     return this;
   }
 
 
-  public void threadruns(final StreamServiceClient c, final String stream) {
-    synchronized (this) {
-      while (streamInfo == null) {
-        try {
-          for (StreamInfo s : c.listStreams()) {
-            if (s.getName().equals(stream)) {
-              streamInfo = s;
-            }
+  private synchronized boolean setinfo(StreamServiceClient c) {
+    while (streamInfo == null) {
+      try {
+        for (StreamInfo s : c.listStreams()) {
+          if (s.getName().equals(stream)) {
+            streamInfo = s;
           }
-        } catch (IOException e) {}
-        available = new Semaphore(streamInfo.getWidthInBlocks() * streamInfo.getHeightInBlocks() * 100, true);
+        }
+        setDim(streamInfo.getWidthInBlocks(), streamInfo.getHeightInBlocks());
+        get.lock();
+        current = 0;
+        readuntil = streamInfo.getWidthInBlocks() * streamInfo.getHeightInBlocks() * 100;
+        get.unlock();
+      } catch (IOException e) {
+        System.err.println("Cant get streaminfo from "+c.getHost()+"! Cause:"+e.getLocalizedMessage());
+        return false;
       }
     }
+    return true;
+  }
+  public void threadruns(final StreamServiceClient c, final String stream) {
+    while (streamInfo == null)
+       if (!setinfo(c)) {
+         try {
+           Thread.sleep(100);
+         } catch (InterruptedException e) {}
+       }
+    System.err.println("threadRun done!");
 
     while(!Thread.interrupted()) {
-      available.acquireUninterruptibly();
-      int blockIndex = currentBlock.incrementAndGet();
-      int frameIndex = (int) Math.floor((double)blockIndex / (double)streamInfo.getHeightInBlocks() / (double)streamInfo.getWidthInBlocks());
+      get.lock();
+      int blockIndex = current++;
+      get.unlock();
+      int frameIndex = (int) Math.floor((double)blockIndex / (double)(streamInfo.getHeightInBlocks() *streamInfo.getWidthInBlocks()));
       StreamFrame f = null;
       synchronized (this) {
         if (!frames.containsKey(frameIndex)){
@@ -107,13 +118,15 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 
       while (!Thread.interrupted()) {
         try {
-          int framestart = frameIndex > 0 ? blockIndex / frameIndex : 0;
-          int x = streamInfo.getHeightInBlocks() % (blockIndex - framestart);
-          int y = (blockIndex - framestart) / streamInfo.getWidthInBlocks();
 
-
+          int framestart = frameIndex > 0 ? (frameIndex*streamInfo.getWidthInBlocks()*streamInfo.getHeightInBlocks()) : 0;
+          int x = (blockIndex - framestart) / streamInfo.getHeightInBlocks();
+          int y = (blockIndex - framestart) % streamInfo.getHeightInBlocks();
+          //System.out.println("frameIndex: " + frameIndex + ", x: "+x + " , y: "+y +", framestart: " +framestart +", block:"+blockIndex + " ["+streamInfo.getWidthInBlocks()+"x"+ streamInfo.getHeightInBlocks()+"]");
           long time = System.currentTimeMillis();
-          f.downloadBlock(c, x, y);
+          if (f.downloadBlock(c, x, y)==0) {
+            addFrame();
+          }
           time = System.currentTimeMillis() - time;
           addPacketLatency(c.getHost(), time);
           break;

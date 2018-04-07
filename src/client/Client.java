@@ -33,10 +33,14 @@ public class Client {
     /* Get all info */
     List<FrameAccessor> fas = startAllClients(streams, noOfThreads, timeout, username);
 
-    try {
-      Thread.sleep(10000);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
+    int time = 0;
+    while(time < 10) {
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+      System.out.println("Time:" +time++);
     }
     /* Print Statistics */
     printStatistics(args, fas);
@@ -50,7 +54,6 @@ public class Client {
     for (Integer t: streams) {
       FrameAccessor fa = null;
       for (int i = 0; i < threads; i++) {
-        System.out.println(i +" "+t);
         String h = hosts[i % hosts.length];
         StreamServiceClient c = null;
         try {
@@ -124,7 +127,12 @@ public class Client {
 
   private static void updateSome(Method method, FrameAccessor f, HashMap<String, Double> map, String[] hosts) throws InvocationTargetException, IllegalAccessException {
     for (String h : hosts) {
-      double newValue = (double) method.invoke(f, h);
+      double newValue = 0.0;
+      try {
+        newValue = (double) method.invoke(f, h);
+      }catch (java.lang.reflect.InvocationTargetException e) {
+        System.err.println(e.getCause()+ " "+e.getTargetException());
+      }
       double currentValue = map.get(h);
       currentValue = (currentValue > 0.001) ? (newValue + currentValue) / 2.0 : newValue;
       map.replace(h, currentValue);
