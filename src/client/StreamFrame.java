@@ -8,28 +8,28 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class StreamFrame implements client.FrameAccessor.Frame {
-    private final String stream;
-    private int id;
-    private Block[][] blocks;
-    private AtomicInteger downloaded;
+	private final String stream;
+	private int id;
+	private Block[][] blocks;
+	private AtomicInteger downloaded;
 
-    public StreamFrame(int id, String stream, int x, int y){
-        this.id = id;
-        this.blocks = new Block[x][y];
-        this.stream = stream;
-        downloaded = new AtomicInteger(x*y);
-    }
+	StreamFrame(int id, String stream, int x, int y){
+		this.id = id;
+		this.blocks = new Block[x][y];
+		this.stream = stream;
+		downloaded = new AtomicInteger(x*y);
+	}
 
 
-    @Override
-    public Block getBlock(int blockX, int blockY) {
-        return this.blocks[blockX][blockY];
-    }
+	@Override
+	public Block getBlock(int blockX, int blockY) {
+		return this.blocks[blockX][blockY];
+	}
 
-    public int downloadBlock(StreamServiceClient c, int x, int y) throws IOException {
-        this.blocks[x][y] = c.getBlock(stream, id, x, y);
+	int downloadBlock(StreamServiceClient c, int x, int y) throws IOException {
+		this.blocks[x][y] = c.getBlock(stream, id, x, y);
 
-        int d = downloaded.decrementAndGet();
-        return d;
-    }
+		int d = downloaded.decrementAndGet();
+		return d;
+	}
 }

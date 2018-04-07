@@ -16,118 +16,123 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class Client {
-  public static void main (String[] args) throws SocketException, UnknownHostException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-    if (args.length != 5) {
-      throw new IllegalArgumentException("<Username:String> <Timeout:Int> <Threads:Int> <streams-Start:Int[,]:(1-10)> <streams-End:Int[,]:(1-10)>, given:"+args.length);
-    }
-    String username = args[0];
-    int timeout     = Integer.parseInt(args[1]);
-    int noOfThreads = Integer.parseInt(args[2]);
-    List<Integer> streams = IntStream.rangeClosed(Integer.parseInt(args[3]), Integer.parseInt(args[4])).boxed().collect(Collectors.toList());
+	public static void main (String[] args) throws SocketException, UnknownHostException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+		if (args.length != 5) {
+			throw new IllegalArgumentException("<Username:String> <Timeout:Int> <Threads:Int> <streams-Start:Int[,]:(1-10)> <streams-End:Int[,]:(1-10)>, given:"+args.length);
+		}
+		String username = args[0];
+		int timeout     = Integer.parseInt(args[1]);
+		int noOfThreads = Integer.parseInt(args[2]);
+		List<Integer> streams = IntStream.rangeClosed(Integer.parseInt(args[3]), Integer.parseInt(args[4])).boxed().collect(Collectors.toList());
 
+		System.out.println("Username: "+username);
+		System.out.println("Timeout: "+timeout);
+		System.out.println("Threads: "+ noOfThreads);
+		System.out.println("StreamArray: "+ Arrays.toString(streams.toArray()));
+		/* Get all info */
+		List<FrameAccessor> fas = startAllClients(streams, noOfThreads, timeout, username);
 
-    System.out.println("Username: "+username);
-    System.out.println("Timeout: "+timeout);
-    System.out.println("Threads: "+ noOfThreads);
-    System.out.println("StreamArray: "+ Arrays.toString(streams.toArray()));
-    /* Get all info */
-    List<FrameAccessor> fas = startAllClients(streams, noOfThreads, timeout, username);
+		int time = 0;
+		while(time < 10) {
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			System.out.println("Time:" +time++);
+		}
 
-    try {
-      Thread.sleep(1000);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
-    /* Print Statistics */
-    printStatistics(args, fas);
-    System.exit(127);
+		printStatistics(args, fas);
+		System.exit(127);
+	}
 
-  }
+	private static List<FrameAccessor> startAllClients(List<Integer> streams, int threads, int timeout, String username) {
+		List<FrameAccessor> fas = new LinkedList<>();
+		final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
+		for (Integer t: streams) {
+			FrameAccessor fa = null;
+			for (int i = 0; i < threads; i++) {
+				String h = hosts[i % hosts.length];
+				StreamServiceClient c = null;
+				try {
+					c = DefaultStreamServiceClient.bind(h, timeout, username);
+				} catch (SocketException | UnknownHostException e) {
+					e.printStackTrace();
+				}
+				fa = FrameInfoFactory.getInstance().getFrameAccessor(c, "stream"+t);
+			}
+			fas.add(fa);
+		}
+		return fas;
+	}
 
-  private static List<FrameAccessor> startAllClients(List<Integer> streams, int threads, int timeout, String username) {
-    List<FrameAccessor> fas = new LinkedList<>();
-    final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
-    for (Integer t: streams) {
-      FrameAccessor fa = null;
-      for (int i = 0; i < threads; i++) {
-        System.out.println(i +" "+t);
-        String h = hosts[i % hosts.length];
-        StreamServiceClient c = null;
-        try {
-          c = DefaultStreamServiceClient.bind(h, timeout, username);
-        } catch (SocketException | UnknownHostException e) {
-          e.printStackTrace();
-        }
-        fa = FrameInfoFactory.getInstance().getFrameAccessor(c, "stream"+t);
-      }
-      fas.add(fa);
-    }
-    return fas;
-  }
+	/**
+	 *
+	 * @param args
+	 * @param fas
+	 * Service == Per host. ref TA Jakob.
+	 * Metric  - Level	- Unit
+	 * (UDP) packet drop rate (per service)	         - transport	  - percentage (%)
+	 * (average) packet latency (per service)        - transport	  - milliseconds (ms)
+	 * (average) frame throughput	                   - application	- frames per second (fps)
+	 * bandwidth utilization(total network footprint)- application  - bits per second (bps)
+	 */
+	private static void printStatistics(String[] args, List<FrameAccessor> fas) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+		final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
+		double bandwidth = 0.0;
+		double throughput = 0.0;
+		int i = 0;
+		HashMap<String, Double> dropRate = new HashMap<>();
+		HashMap<String, Double> latency = new HashMap<>();
+		for(String h: hosts) {
+			dropRate.put(h, 0.0);
+			latency.put(h, 0.0);
+		}
 
-  /**
-   *
-   * @param args
-   * @param fas
-   * Service == Per host. ref TA Jakob.
-   * Metric  - Level	- Unit
-   * (UDP) packet drop rate (per service)	         - transport	  - percentage (%)
-   * (average) packet latency (per service)        - transport	  - milliseconds (ms)
-   * (average) frame throughput	                   - application	- frames per second (fps)
-   * bandwidth utilization(total network footprint)- application  - bits per second (bps)
-   */
-  private static void printStatistics(String[] args, List<FrameAccessor> fas) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-    final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
-    double bandwidth = 0.0;
-    double throughput = 0.0;
-    int i = 0;
-    HashMap<String, Double> dropRate = new HashMap<>();
-    HashMap<String, Double> latency = new HashMap<>();
-    for(String h: hosts) {
-      dropRate.put(h, 0.0);
-      latency.put(h, 0.0);
-    }
+		for (FrameAccessor f : fas) {
+			bandwidth  += f.getPerformanceStatistics().getBandwidthUtilization();
+			throughput += f.getPerformanceStatistics().getFrameThroughput();
 
+			Method m = FrameAccessor.PerformanceStatistics.class.getMethod("getPacketDropRate", String.class);
+			updateSome(m, f, dropRate, hosts);
+			m = FrameAccessor.PerformanceStatistics.class.getMethod("getPacketLatency", String.class);
+			updateSome(m, f, latency, hosts);
 
-    for (FrameAccessor f : fas) {
-      bandwidth  += f.getPerformanceStatistics().getBandwidthUtilization();
-      throughput += f.getPerformanceStatistics().getFrameThroughput();
+			if (i > 0) {
+				bandwidth = bandwidth / 2.0;
+				throughput = throughput / 2.0;
+			}
+			i++;
+		}
 
-      Method m = FrameAccessor.PerformanceStatistics.class.getMethod("getPacketDropRate", String.class);
-      updateSome(m, f, dropRate, hosts);
-      m = FrameAccessor.PerformanceStatistics.class.getMethod("getPacketLatency", String.class);
-      updateSome(m, f, latency, hosts);
+		for (String a : args) {
+			System.out.print(a+";");
+		}
+		System.out.print(";;");
+		System.out.print("bw:"+(bandwidth)+";");
+		System.out.print("tp:"+(throughput)+";");
+		System.out.print("dr=[");
+		for (String h : hosts) {
+			System.out.print(Double.toString(dropRate.get(h))+";");
+		}
+		System.out.print("];l=[");
+		for (String h : hosts) {
+			System.out.print(Double.toString(latency.get(h)) + ";");
+		}
+		System.out.println("]");
+	}
 
-      if (i > 0) {
-        bandwidth = bandwidth / 2.0;
-        throughput = throughput / 2.0;
-      }
-      i++;
-    }
-
-    for (String a : args) {
-      System.out.print(a+";");
-    }
-    System.out.print(";;");
-    System.out.print("bw:"+(bandwidth)+";");
-    System.out.print("tp:"+(throughput)+";");
-    System.out.print("dr=[");
-    for (String h : hosts) {
-      System.out.print(Double.toString(dropRate.get(h))+";");
-    }
-    System.out.print("];l=[");
-    for (String h : hosts) {
-      System.out.print(Double.toString(latency.get(h)) + ";");
-    }
-    System.out.println("]");
-  }
-
-  private static void updateSome(Method method, FrameAccessor f, HashMap<String, Double> map, String[] hosts) throws InvocationTargetException, IllegalAccessException {
-    for (String h : hosts) {
-      double newValue = (double) method.invoke(f, h);
-      double currentValue = map.get(h);
-      currentValue = (currentValue > 0.001) ? (newValue + currentValue) / 2.0 : newValue;
-      map.replace(h, currentValue);
-    }
-  }
+	private static void updateSome(Method method, FrameAccessor f, HashMap<String, Double> map, String[] hosts) throws InvocationTargetException, IllegalAccessException {
+		for (String h : hosts) {
+			double newValue = 0.0;
+			try {
+				newValue = (double) method.invoke(f, h);
+			}catch (java.lang.reflect.InvocationTargetException e) {
+				System.err.println(e.getCause()+ " "+e.getTargetException());
+			}
+			double currentValue = map.get(h);
+			currentValue = (currentValue > 0.001) ? (newValue + currentValue) / 2.0 : newValue;
+			map.replace(h, currentValue);
+		}
+	}
 }
