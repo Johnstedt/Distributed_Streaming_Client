@@ -44,13 +44,14 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
         List<Long> l = latency.getOrDefault(host, new ArrayList<>());
 
 
-        if (l.size() == 0) {
-            return -1.0;
-        }
 
         long tot = 0;
         for (long element : l) {
             tot += element;
+        }
+
+        if (l.size() == 0 || tot == 0) {
+            return -1.0;
         }
         System.out.println("(double)tot / (double)l.size()"+ (double)tot +" "+ (double)l.size());
         return (double)tot / (double)l.size();

@@ -1,54 +1,35 @@
 package client;
 
-import com.sun.org.apache.xpath.internal.SourceTree;
 import ki.types.ds.Block;
-import ki.types.ds.StreamInfo;
 import se.umu.cs._5dv186.a1.client.StreamServiceClient;
 
 import java.io.IOException;
-import java.net.SocketTimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class StreamFrame implements client.FrameAccessor.Frame {
-
+    private final String stream;
+    private int id;
     private Block[][] blocks;
+    private AtomicInteger downloaded;
 
-    StreamFrame(String stream, StreamServiceClient c, int frameId)  /*throws IOException, SocketTimeoutException*/ {
-        StreamInfo[] info = null;
-        try {
-            info = c.listStreams();
-        }catch (java.lang.ClassCastException e) {
-            System.err.println("nope 1");
-        } catch (SocketTimeoutException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        System.out.println("Yupp 1");
-        for( StreamInfo s : info){
-            if(s.getName().equals(stream)){
-                this.blocks = new Block[s.getWidthInBlocks()][s.getHeightInBlocks()];
-                for(int i = 0; i < s.getWidthInBlocks(); i++){
-                    for(int j = 0; j < s.getHeightInBlocks(); j++) {
-                        try {
-                            this.blocks[i][j] = c.getBlock(stream, frameId, i, j);
-                            System.out.println(frameId + " " + j + " " + i);
-                        }catch (java.lang.ClassCastException e){
-                            System.err.println("nope 2");
-                        } catch (SocketTimeoutException e) {
-                            System.out.println("Socket timed out");
-                        } catch (IOException e) {
-                            System.out.println("IO will it ever even happen?");
-                        }
-                    }
-                }
-            }
-        }
-        System.out.println("SteamFrame done");
+    public StreamFrame(int id, String stream, int x, int y){
+        this.id = id;
+        this.blocks = new Block[x][y];
+        this.stream = stream;
+        downloaded = new AtomicInteger(x*y);
     }
+
 
     @Override
     public Block getBlock(int blockX, int blockY) {
-        return blocks[blockX][blockY];
+        return this.blocks[blockX][blockY];
+    }
+
+    public int downloadBlock(StreamServiceClient c, int x, int y) throws IOException {
+        this.blocks[x][y] = c.getBlock(stream, id, x, y);
+
+        int d = downloaded.decrementAndGet();
+        return d;
     }
 }
