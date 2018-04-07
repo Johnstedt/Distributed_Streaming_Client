@@ -18,6 +18,8 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
   private final Semaphore available = new Semaphore(100, true);
 
   public FrameInfo(String stream){
+    super();
+    startTime();
     System.out.println("Creating FrameInfo for stream: "+stream);
     this.stream = stream;
     clients = new LinkedList<>();
@@ -59,19 +61,32 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
   /* Statistics */
   @Override
   public PerformanceStatistics getPerformanceStatistics() {
-    return null;
+    stopTime();
+    return this;
   }
 
 
   public void threadruns(StreamServiceClient c, String stream) {
     System.out.println("new thread in stream"+stream);
     while(true) {
-
       available.acquireUninterruptibly();
+      int frameIndex = currentFrame.incrementAndGet();
+      Frame f = null;
 
-        int frameIndex = currentFrame.incrementAndGet();
-        Frame f = new StreamFrame(stream, c, frameIndex);
+      try {
+        long time = System.currentTimeMillis();
+        f = new StreamFrame(stream, c, frameIndex);
+        System.out.println("put frame");
+        time = System.currentTimeMillis() - time;
+        addPacketLatency(c.getHost(), time);
         frames.put(frameIndex, f);
+        addFrame();
+
+      } catch (SocketTimeoutException e) {
+        addTimeOut(c.getHost());
+      } catch (IOException e) {
+        System.out.println("some IO error.");
+      }
 
 
     }

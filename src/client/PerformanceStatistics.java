@@ -22,38 +22,38 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
     @Override
     public double getPacketDropRate(String host) {
 
-        int successes;
+        int successes = 0;
         int failures;
         if(latency.containsKey(host)) {
             List<Long> l = latency.get(host);
             successes = l.size();
-        } else {
-            successes = 0;
         }
 
-        if(dropRate.containsKey(host)){
-            failures = dropRate.get(host);
-        } else {
-            failures = 0;
+        failures = dropRate.getOrDefault(host, 0);
+
+        if(successes == 0){
+            return 100.0;
         }
 
-        if(failures+successes == 0){
-            return -1;
-        }
-
-        return (double)successes / ((double)failures + (double)successes) * 100;
+        System.out.println(" (double)successes / ((double)failures"+(double)successes+"("+successes+")" +" "+ ((double)failures));
+        return (double)successes / ((double)failures + (double)successes) * 100.0;
     }
 
     @Override
     public double getPacketLatency(String host) {
-        List<Long> l = latency.get(host);
+        List<Long> l = latency.getOrDefault(host, new ArrayList<>());
+
+
+        if (l.size() == 0) {
+            return -1.0;
+        }
 
         long tot = 0;
         for (long element : l) {
             tot += element;
         }
-
-        return (double)tot / l.size();
+        System.out.println("(double)tot / (double)l.size()"+ (double)tot +" "+ (double)l.size());
+        return (double)tot / (double)l.size();
     }
 
     @Override
@@ -65,7 +65,7 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
     @Override
     public double getBandwidthUtilization() {
 
-        return getFrameThroughput() * 768 * x  * y;
+        return (getFrameThroughput() * 768.0 * (double)x  * (double)y);
     }
 
     void setDim(int x, int y){
@@ -86,23 +86,15 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
     }
 
     void addPacketLatency(String host, long timeInMilliseconds){
-
-        List<Long> l;
-        if(latency.containsKey(host)) {
-            l = latency.get(host);
-        } else {
-            l = new ArrayList<>();
-        }
-
+        List<Long> l = latency.getOrDefault(host, new ArrayList<>());
         l.add(timeInMilliseconds);
-
+        System.err.println("added latency " + host + " "+ timeInMilliseconds);
         latency.put(host, l);
     }
 
     void addTimeOut(String host){
-
         int i = dropRate.getOrDefault(host, 0);
-
+        System.err.println("new timeout: "+host+" "+(i+1));
         dropRate.put(host, ++i);
     }
 

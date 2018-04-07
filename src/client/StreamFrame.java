@@ -12,35 +12,29 @@ public class StreamFrame implements client.FrameAccessor.Frame {
 
     private Block[][] blocks;
 
-    StreamFrame(String stream, StreamServiceClient c, int frameId) {
-
+    StreamFrame(String stream, StreamServiceClient c, int frameId)  throws IOException, SocketTimeoutException {
+        StreamInfo[] info = null;
         try {
-            StreamInfo[] info = c.listStreams();
-            for( StreamInfo s : info){
-                if(s.getName().equals(stream)){
-
-
-                    this.blocks = new Block[s.getWidthInBlocks()][s.getHeightInBlocks()];
-
-                    for(int i = 0; i < s.getWidthInBlocks(); i++){
-                        for(int j = 0; j < s.getHeightInBlocks(); j++){
-
-                            System.out.println(stream+" "+frameId +" "+i+" "+j);
-                            try {
-                                this.blocks[i][j] = c.getBlock(stream, frameId, i, j);
-                            } catch (SocketTimeoutException e){
-                                System.out.println("Socket timed out");
-                            }
-
+            info = c.listStreams();
+        }catch (java.lang.ClassCastException e) {
+            System.err.println("nope 1");
+        }
+        System.out.println("Yupp 1");
+        for( StreamInfo s : info){
+            if(s.getName().equals(stream)){
+                this.blocks = new Block[s.getWidthInBlocks()][s.getHeightInBlocks()];
+                for(int i = 0; i < s.getWidthInBlocks(); i++){
+                    for(int j = 0; j < s.getHeightInBlocks(); j++) {
+                        try {
+                            this.blocks[i][j] = c.getBlock(stream, frameId, i, j);
+                        }catch (java.lang.ClassCastException e){
+                            System.err.println("nope 2");
                         }
                     }
                 }
             }
-        } catch (IOException e) {
-            e.getStackTrace();
-
         }
-
+        System.out.println("SteamFrame done");
     }
 
     @Override
