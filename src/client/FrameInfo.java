@@ -73,19 +73,16 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
       int frameIndex = currentFrame.incrementAndGet();
       Frame f = null;
 
-      try {
-        long time = System.currentTimeMillis();
-        f = new StreamFrame(stream, c, frameIndex);
-        System.out.println("put frame");
-        time = System.currentTimeMillis() - time;
-        addPacketLatency(c.getHost(), time);
-        frames.put(frameIndex, f);
-        addFrame();
+      while(f == null) {
 
-      } catch (SocketTimeoutException e) {
-        addTimeOut(c.getHost());
-      } catch (IOException e) {
-        System.out.println("some IO error.");
+              long time = System.currentTimeMillis();
+              f = new StreamFrame(stream, c, frameIndex);
+              System.out.println("put frame");
+              time = System.currentTimeMillis() - time;
+              addPacketLatency(c.getHost(), time);
+              frames.put(frameIndex, f);
+              addFrame();
+
       }
 
 

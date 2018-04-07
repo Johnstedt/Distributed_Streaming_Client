@@ -1,5 +1,6 @@
 package client;
 
+import com.sun.org.apache.xpath.internal.SourceTree;
 import ki.types.ds.Block;
 import ki.types.ds.StreamInfo;
 import se.umu.cs._5dv186.a1.client.StreamServiceClient;
@@ -12,12 +13,16 @@ public class StreamFrame implements client.FrameAccessor.Frame {
 
     private Block[][] blocks;
 
-    StreamFrame(String stream, StreamServiceClient c, int frameId)  throws IOException, SocketTimeoutException {
+    StreamFrame(String stream, StreamServiceClient c, int frameId)  /*throws IOException, SocketTimeoutException*/ {
         StreamInfo[] info = null;
         try {
             info = c.listStreams();
         }catch (java.lang.ClassCastException e) {
             System.err.println("nope 1");
+        } catch (SocketTimeoutException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
         System.out.println("Yupp 1");
         for( StreamInfo s : info){
@@ -27,8 +32,13 @@ public class StreamFrame implements client.FrameAccessor.Frame {
                     for(int j = 0; j < s.getHeightInBlocks(); j++) {
                         try {
                             this.blocks[i][j] = c.getBlock(stream, frameId, i, j);
+                            System.out.println(frameId + " " + j + " " + i);
                         }catch (java.lang.ClassCastException e){
                             System.err.println("nope 2");
+                        } catch (SocketTimeoutException e) {
+                            System.out.println("Socket timed out");
+                        } catch (IOException e) {
+                            System.out.println("IO will it ever even happen?");
                         }
                     }
                 }
