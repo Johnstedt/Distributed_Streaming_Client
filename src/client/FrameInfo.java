@@ -13,9 +13,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
   private String stream;
   private LinkedList<StreamServiceClient> clients;
-  private HashMap<Integer, Frame> frames;
-  private AtomicInteger currentFrame;
-  private final Semaphore available = new Semaphore(100, true);
+  private HashMap<Integer, StreamFrame> frames;
+  private AtomicInteger currentBlock;
+  private Semaphore available = null;
+  private StreamInfo streamInfo;
+  private LinkedList<Thread> threads = new LinkedList<>();
 
   public FrameInfo(String stream){
     super();
@@ -24,7 +26,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
     this.stream = stream;
     clients = new LinkedList<>();
     frames = new HashMap<>();
-    currentFrame = new AtomicInteger(1);
+    currentBlock = new AtomicInteger(1);
 
   }
 
@@ -37,6 +39,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
         threadruns(c, stream);
       }
     };
+    threads.add(t);
     t.start();
     //TODO: Make a run for it ^^ aka hämta frames.
 
@@ -52,7 +55,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
   @Override
   public Frame getFrame(int frame) throws IOException, SocketTimeoutException {
     //TODO IF not exists = block.
-    available.release();
+    available.release(streamInfo.getHeightInBlocks()*streamInfo.getWidthInBlocks());
     return frames.get(frame);
 
   }
@@ -62,33 +65,64 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
   @Override
   public PerformanceStatistics getPerformanceStatistics() {
     stopTime();
+    for (Thread t : threads) {
+      t.interrupt();
+      try {
+        t.join();
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    }
     return this;
   }
 
 
-  public void threadruns(StreamServiceClient c, String stream) {
-    System.out.println("new thread in stream"+stream);
-    while(true) {
+  public void threadruns(final StreamServiceClient c, final String stream) {
+    synchronized (this) {
+      while (streamInfo == null) {
+        try {
+          for (StreamInfo s : c.listStreams()) {
+            if (s.getName().equals(stream)) {
+              streamInfo = s;
+            }
+          }
+        } catch (IOException e) {}
+        available = new Semaphore(streamInfo.getWidthInBlocks() * streamInfo.getHeightInBlocks() * 100, true);
+      }
+    }
+
+    while(!Thread.interrupted()) {
       available.acquireUninterruptibly();
-      int frameIndex = currentFrame.incrementAndGet();
-      Frame f = null;
-
-      try {
-        long time = System.currentTimeMillis();
-        f = new StreamFrame(stream, c, frameIndex);
-        System.out.println("put frame");
-        time = System.currentTimeMillis() - time;
-        addPacketLatency(c.getHost(), time);
-        frames.put(frameIndex, f);
-        addFrame();
-
-      } catch (SocketTimeoutException e) {
-        addTimeOut(c.getHost());
-      } catch (IOException e) {
-        System.out.println("some IO error.");
+      int blockIndex = currentBlock.incrementAndGet();
+      int frameIndex = (int) Math.floor((double)blockIndex / (double)streamInfo.getHeightInBlocks() / (double)streamInfo.getWidthInBlocks());
+      StreamFrame f = null;
+      synchronized (this) {
+        if (!frames.containsKey(frameIndex)){
+          f = new StreamFrame(frameIndex, stream, streamInfo.getWidthInBlocks(), streamInfo.getHeightInBlocks());
+          frames.put(frameIndex, f);
+        } else {
+          f = frames.get(frameIndex);
+        }
       }
 
+      while (!Thread.interrupted()) {
+        try {
+          int framestart = frameIndex > 0 ? blockIndex / frameIndex : 0;
+          int x = streamInfo.getHeightInBlocks() % (blockIndex - framestart);
+          int y = (blockIndex - framestart) / streamInfo.getWidthInBlocks();
 
+
+          long time = System.currentTimeMillis();
+          f.downloadBlock(c, x, y);
+          time = System.currentTimeMillis() - time;
+          addPacketLatency(c.getHost(), time);
+          break;
+        } catch (SocketTimeoutException e) {
+          addTimeOut(c.getHost());
+        } catch (IOException e) {
+          System.out.println("some IO error.");
+        }
+      }
     }
   }
 }
