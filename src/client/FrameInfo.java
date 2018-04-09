@@ -49,7 +49,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 	/* Frame */
 	@Override
 	public StreamInfo getStreamInfo() throws IOException, SocketTimeoutException {
-		return null;
+		return streamInfo;
 	}
 
 	@Override

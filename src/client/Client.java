@@ -4,6 +4,7 @@ import se.umu.cs._5dv186.a1.client.DefaultStreamServiceClient;
 import se.umu.cs._5dv186.a1.client.StreamServiceClient;
 import se.umu.cs._5dv186.a1.client.StreamServiceDiscovery;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.SocketException;
@@ -43,7 +44,14 @@ public class Client {
 			System.out.println("Time:" +time--);
 		}
 
-		printStatistics(args, fas);
+		//printStatistics(args, fas);
+		printOnlyThroughputBandWidth(args, fas);
+		printLatencyAndDropratePerHost(args, fas);
+		try {
+			printLatencyAndDropRatePerStream(args, fas);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		System.exit(127);
 	}
 
@@ -136,4 +144,69 @@ public class Client {
 			map.replace(h, currentValue);
 		}
 	}
+
+	private static void printOnlyThroughputBandWidth(String[] args, List<FrameAccessor> fas){
+		double bandwidth = 0.0;
+		double throughput = 0.0;
+		for (FrameAccessor f : fas){
+			bandwidth  += f.getPerformanceStatistics().getBandwidthUtilization();
+			throughput += f.getPerformanceStatistics().getFrameThroughput();
+		}
+		System.out.println("bw: "+ bandwidth );
+		System.out.println("th: "+ throughput );
+
+	}
+
+	private static void printLatencyAndDropratePerHost(String[] args, List<FrameAccessor> fas) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+		final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
+		HashMap<String, Double> dropRate = new HashMap<>();
+		HashMap<String, Double> latency = new HashMap<>();
+
+		for(String h: hosts) {
+			dropRate.put(h, 0.0);
+			latency.put(h, 0.0);
+		}
+
+		for (FrameAccessor f : fas) {
+
+			Method m = FrameAccessor.PerformanceStatistics.class.getMethod("getPacketDropRate", String.class);
+			updateSome(m, f, dropRate, hosts);
+			m = FrameAccessor.PerformanceStatistics.class.getMethod("getPacketLatency", String.class);
+			updateSome(m, f, latency, hosts);
+
+		}
+
+		System.out.print("dr=[\\");
+		for (String h : hosts) {
+			System.out.println(h + " " +Double.toString(dropRate.get(h))+";");
+		}
+		System.out.println("];l=[");
+		for (String h : hosts) {
+			System.out.println(h + " " +Double.toString(latency.get(h)) + ";");
+		}
+		System.out.println("]");
+
+	}
+	private static void printLatencyAndDropRatePerStream(String[] args, List<FrameAccessor> fas) throws IOException {
+		final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
+
+
+		double streamDrop;
+		double streamLatency;
+
+		for (FrameAccessor f : fas) {
+
+			streamDrop = 0.0;
+			streamLatency = 0.0;
+
+			for(String h: hosts) {
+				streamDrop += f.getPerformanceStatistics().getPacketDropRate(h);
+				streamLatency += f.getPerformanceStatistics().getPacketLatency(h);
+			}
+			System.out.println(f.getStreamInfo().getName() + " dr " + streamDrop/(double)hosts.length + " l " + streamLatency/(double)hosts.length);
+
+		}
+
+	}
+
 }
