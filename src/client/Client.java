@@ -27,11 +27,15 @@ public class Client {
 		int noOfThreads = Integer.parseInt(args[3]);
 		List<Integer> streams = IntStream.rangeClosed(Integer.parseInt(args[4]), Integer.parseInt(args[5])).boxed().collect(Collectors.toList());
 
-		System.out.println("Username: "+username);
-    System.out.println("Timeout: "+timeout);
-    System.out.println("Program time: "+time);
-		System.out.println("Threads: "+ noOfThreads);
-		System.out.println("StreamArray: "+ Arrays.toString(streams.toArray()));
+		System.err.println("Username: "+username);
+		System.err.println("Timeout: "+timeout);
+		System.err.println("Program time: "+time);
+		System.err.println("Threads: "+ noOfThreads);
+		System.err.println("StreamArray: "+ Arrays.toString(streams.toArray()));
+
+		System.out.print(username + ", " + timeout + ", " + time + ", " + noOfThreads +  ", " + Arrays.toString(streams.toArray()));
+
+
 		/* Get all info */
 		List<FrameAccessor> fas = startAllClients(streams, noOfThreads, timeout, username);
 
@@ -41,7 +45,8 @@ public class Client {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			System.out.println("Time:" +time--);
+			//System.out.println("Time:" +time--);
+			time--;
 		}
 
 		//printStatistics(args, fas);
@@ -61,8 +66,8 @@ public class Client {
 		for (Integer t: streams) {
 			FrameAccessor fa = null;
 			for (int i = 0; i < threads; i++) {
-        System.out.println("Thread :"+i +" for stream "+t);
-        String h = hosts[i % hosts.length];
+                //System.out.println("Thread :"+i +" for stream "+t);
+                String h = hosts[i % hosts.length];
 				StreamServiceClient c = null;
 				try {
 					c = DefaultStreamServiceClient.bind(h, timeout, username);
@@ -153,10 +158,9 @@ public class Client {
 			bandwidth  += f.getPerformanceStatistics().getBandwidthUtilization();
 			throughput += f.getPerformanceStatistics().getFrameThroughput();
 		}
-		System.out.println("\n");
-		System.out.println("bw: "+ bandwidth );
-		System.out.println("th: "+ throughput );
-		System.out.println("\n");
+
+		System.out.print(", " + bandwidth );
+		System.out.print(", " + throughput );
 
 	}
 
@@ -179,20 +183,20 @@ public class Client {
 
 		}
 
-		System.out.print("dr=[\n");
+
 		for (String h : hosts) {
-			System.out.println(h + " " +Double.toString(dropRate.get(h))+";");
+			System.out.print(", " +Double.toString(dropRate.get(h)));
 		}
-		System.out.println("];l=[");
+
 		for (String h : hosts) {
-			System.out.println(h + " " +Double.toString(latency.get(h)) + ";");
+			System.out.print(", " +Double.toString(latency.get(h)));
 		}
-		System.out.println("]");
+
 
 	}
+
 	private static void printLatencyAndDropRatePerStream(String[] args, List<FrameAccessor> fas) throws IOException {
 		final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
-
 
 		double streamDrop;
 		double streamLatency;
@@ -206,10 +210,8 @@ public class Client {
 				streamDrop += f.getPerformanceStatistics().getPacketDropRate(h);
 				streamLatency += f.getPerformanceStatistics().getPacketLatency(h);
 			}
-			System.out.println(f.getStreamInfo().getName() + " dr " + streamDrop/(double)hosts.length + " l " + streamLatency/(double)hosts.length);
-
+			System.out.print(", " + streamDrop/(double)hosts.length + ", " + streamLatency/(double)hosts.length+ "\n");
 		}
-
 	}
 
 }
