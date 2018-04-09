@@ -53,7 +53,8 @@ public class Client {
 		for (Integer t: streams) {
 			FrameAccessor fa = null;
 			for (int i = 0; i < threads; i++) {
-				String h = hosts[i % hosts.length];
+        System.out.println("Thread :"+i +" for stream "+t);
+        String h = hosts[i % hosts.length];
 				StreamServiceClient c = null;
 				try {
 					c = DefaultStreamServiceClient.bind(h, timeout, username);

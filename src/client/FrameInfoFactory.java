@@ -17,7 +17,6 @@ public class FrameInfoFactory implements FrameAccessor.Factory {
 
 		FrameAccessorClient(FrameInfo frameAccessor, StreamServiceClient scc) {
 			this(frameAccessor);
-			addClient(scc);
 		}
 
 		void addClient(StreamServiceClient ssc) {
