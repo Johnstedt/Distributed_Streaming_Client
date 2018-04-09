@@ -25,7 +25,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 		super();
     streamInfo = null;
 		startTime();
-		System.out.println("Creating FrameInfo for stream: "+stream);
+		System.err.println("Creating FrameInfo for stream: "+stream);
 		this.stream = stream;
 		clients = new LinkedList<>();
 		frames = new HashMap<>();
@@ -49,7 +49,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 	/* Frame */
 	@Override
 	public StreamInfo getStreamInfo() throws IOException, SocketTimeoutException {
-		return null;
+		return streamInfo;
 	}
 
 	@Override
@@ -99,7 +99,6 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 					Thread.sleep(100);
 				} catch (InterruptedException e) {}
 			}
-		System.err.println("threadRun done!");
 
 		while(!Thread.interrupted()) {
 			get.lock();
@@ -127,7 +126,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 					int framestart = frameIndex > 0 ? (frameIndex*streamInfo.getWidthInBlocks()*streamInfo.getHeightInBlocks()) : 0;
 					int x = (blockIndex - framestart) / streamInfo.getHeightInBlocks();
 					int y = (blockIndex - framestart) % streamInfo.getHeightInBlocks();
-					//System.out.println("frameIndex: " + frameIndex + ", x: "+x + " , y: "+y +", framestart: " +framestart +", block:"+blockIndex + " ["+streamInfo.getWidthInBlocks()+"x"+ streamInfo.getHeightInBlocks()+"]");
+				//	System.err.println("frameIndex: " + frameIndex + ", x: "+x + " , y: "+y +", framestart: " +framestart +", block:"+blockIndex + " ["+streamInfo.getWidthInBlocks()+"x"+ streamInfo.getHeightInBlocks()+"]");
 					long time = System.currentTimeMillis();
 					if (f.downloadBlock(c, x, y)==0) {
 						addFrame();
