@@ -17,29 +17,30 @@ import java.util.stream.IntStream;
 
 public class Client {
 	public static void main (String[] args) throws SocketException, UnknownHostException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-		if (args.length != 5) {
-			throw new IllegalArgumentException("<Username:String> <Timeout:Int> <Threads:Int> <streams-Start:Int[,]:(1-10)> <streams-End:Int[,]:(1-10)>, given:"+args.length);
+		if (args.length != 6) {
+			throw new IllegalArgumentException("<Username:String> <Timeout Socket:Int> <Timeout Program:Int> <Threads:Int> <streams-Start:Int[,]:(1-10)> <streams-End:Int[,]:(1-10)>, given:"+args.length);
 		}
 		String username = args[0];
-		int timeout     = Integer.parseInt(args[1]);
-		int noOfThreads = Integer.parseInt(args[2]);
-		List<Integer> streams = IntStream.rangeClosed(Integer.parseInt(args[3]), Integer.parseInt(args[4])).boxed().collect(Collectors.toList());
+    int timeout     = Integer.parseInt(args[1]);
+    int time = Integer.parseInt(args[2]);
+		int noOfThreads = Integer.parseInt(args[3]);
+		List<Integer> streams = IntStream.rangeClosed(Integer.parseInt(args[4]), Integer.parseInt(args[5])).boxed().collect(Collectors.toList());
 
 		System.out.println("Username: "+username);
-		System.out.println("Timeout: "+timeout);
+    System.out.println("Timeout: "+timeout);
+    System.out.println("Program time: "+time);
 		System.out.println("Threads: "+ noOfThreads);
 		System.out.println("StreamArray: "+ Arrays.toString(streams.toArray()));
 		/* Get all info */
 		List<FrameAccessor> fas = startAllClients(streams, noOfThreads, timeout, username);
 
-		int time = 0;
-		while(time < 10) {
+		while(time > 0) {
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			System.out.println("Time:" +time++);
+			System.out.println("Time:" +time--);
 		}
 
 		printStatistics(args, fas);

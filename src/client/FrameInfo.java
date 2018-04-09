@@ -23,6 +23,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 
 	public FrameInfo(String stream){
 		super();
+    streamInfo = null;
 		startTime();
 		System.out.println("Creating FrameInfo for stream: "+stream);
 		this.stream = stream;
