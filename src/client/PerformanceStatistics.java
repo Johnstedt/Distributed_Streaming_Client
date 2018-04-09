@@ -33,7 +33,7 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
         if(successes == 0){
             return 100.0;
         }
-        return (double)successes / ((double)failures + (double)successes) * 100.0;
+        return (double)failures / ((double)failures + (double)successes) * 100.0;
     }
 
     @Override
@@ -52,7 +52,7 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
     @Override
     public double getFrameThroughput() {
 
-        return frames.get()>0 ? (double)frames.get() / ((double)(stop.get() - start.get()) / 1000) : -1337.0;
+        return frames.get()>0 ? (double)latency.size() / (double)x / (double)y / ((double)(stop.get() - start.get()) / 1000) : -1337.0;
     }
 
     @Override
