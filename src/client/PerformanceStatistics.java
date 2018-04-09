@@ -51,14 +51,17 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
 
     @Override
     public double getFrameThroughput() {
-
-        return frames.get()>0 ? (double)latency.size() / (double)x / (double)y / ((double)(stop.get() - start.get()) / 1000) : -1337.0;
+        int lat = 0;
+        for (List<Long> l : latency.values()) {
+            lat += l.size();
+        }
+        return (double)lat / (double)x / (double)y / ((double)(stop.get() - start.get()) / 1000);
     }
 
     @Override
     public double getBandwidthUtilization() {
 
-        return getFrameThroughput() > 0 ? (getFrameThroughput() * 768.0 * (double)x  * (double)y) : -1337.01;
+        return (getFrameThroughput() * 768.0 * (double)x  * (double)y);
     }
 
     void setDim(int x, int y){
