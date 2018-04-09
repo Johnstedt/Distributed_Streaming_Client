@@ -87,11 +87,13 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
     }
 
     void addPacketLatency(String host, long timeInMilliseconds){
-        if (stop.get() == 0) {
-            List<Long> l = latency.getOrDefault(host, new ArrayList<>());
-            l.add(timeInMilliseconds);
-            //System.err.println("added latency " + host + " "+ timeInMilliseconds);
-            latency.put(host, l);
+        synchronized (this) {
+            if (stop.get() == 0) {
+                List<Long> l = latency.getOrDefault(host, new ArrayList<>());
+                l.add(timeInMilliseconds);
+                //System.err.println("added latency " + host + " "+ timeInMilliseconds);
+                latency.put(host, l);
+            }
         }
     }
 

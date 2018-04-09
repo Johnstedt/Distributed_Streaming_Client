@@ -153,8 +153,10 @@ public class Client {
 			bandwidth  += f.getPerformanceStatistics().getBandwidthUtilization();
 			throughput += f.getPerformanceStatistics().getFrameThroughput();
 		}
+		System.out.println("\n");
 		System.out.println("bw: "+ bandwidth );
 		System.out.println("th: "+ throughput );
+		System.out.println("\n");
 
 	}
 
@@ -177,7 +179,7 @@ public class Client {
 
 		}
 
-		System.out.print("dr=[\\");
+		System.out.print("dr=[\n");
 		for (String h : hosts) {
 			System.out.println(h + " " +Double.toString(dropRate.get(h))+";");
 		}
