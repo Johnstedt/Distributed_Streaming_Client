@@ -106,6 +106,11 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 			int blockIndex = current++;
 			get.unlock();
 			int frameIndex = (int) Math.floor((double)blockIndex / (double)(streamInfo.getHeightInBlocks() *streamInfo.getWidthInBlocks()));
+			if (frameIndex > streamInfo.getLengthInFrames()) {
+				System.err.println("Got em all!");
+				stopTime();
+				return;
+			}
 			StreamFrame f = null;
 			synchronized (this) {
 				if (!frames.containsKey(frameIndex)){
