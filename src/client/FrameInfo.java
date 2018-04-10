@@ -37,7 +37,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 		Thread t = new Thread() {
 			@Override
 			public void run() {
-				threadruns(c, stream);
+				threadRunner(c, stream);
 			}
 		};
 		threads.add(t);
@@ -54,7 +54,6 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 
 	@Override
 	public Frame getFrame(int frame) throws IOException, SocketTimeoutException {
-		//TODO IF not exists = block.
 		get.lock();
 		readuntil += streamInfo.getHeightInBlocks()*streamInfo.getWidthInBlocks();
 		get.unlock();
@@ -72,7 +71,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 	}
 
 
-	private synchronized boolean setinfo(StreamServiceClient c) {
+	private synchronized boolean setInfo(StreamServiceClient c) {
 		while (streamInfo == null) {
 			try {
 				for (StreamInfo s : c.listStreams()) {
@@ -92,13 +91,15 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 		}
 		return true;
 	}
-	public void threadruns(final StreamServiceClient c, final String stream) {
+
+	public void threadRunner(final StreamServiceClient c, final String stream) {
 		while (streamInfo == null)
-			if (!setinfo(c)) {
+			if (!setInfo(c)) {
 				try {
 					Thread.sleep(100);
 				} catch (InterruptedException e) {}
 			}
+
 
 		while(!Thread.interrupted()) {
 			get.lock();

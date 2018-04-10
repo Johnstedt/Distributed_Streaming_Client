@@ -49,7 +49,7 @@ public class Client {
 			time--;
 		}
 
-		//printStatistics(args, fas);
+
 		printOnlyThroughputBandWidth(args, fas);
 		printLatencyAndDropratePerHost(args, fas);
 		try {

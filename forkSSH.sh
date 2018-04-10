@@ -2,7 +2,7 @@
 
 path=$(pwd)
 # '/Home/staff/jwestin/private/kandidat-exjobb/simulation;'
-running='./testscript.sh'
+running='./testscript_parallel.sh'
 labcomputers=('wall-e' 'ultron' 'tinman' 't-1000' 'mettaton' 'meka-nicke' 'iron-giant' 'bender' 'c-3po' 'r2-d2' 'robotman' 'gort' 'ed-209' 'chappie' 'dot-matrix' 'voldemort' 'weasley' 'sirius' 'hedwig' 'hermione' 'harry' 'hagrid' 'lucius' 'mad-eye' 'gryffindor' 'gilderoy' 'dobby' 'dolores' 'draco' 'unsigned' 'typedef' 'void' 'volatile' 'long' 'if' 'main' 'goto' 'return' 'short' 'extern' 'sizeof' 'angel' 'banshee' 'magneto' 'iceman' 'beast' 'cyclops' 'toad' 'wolverine' 'silverfox' 'storm')
 labcomputers=( $(shuf -e "${labcomputers[@]}") )
 
@@ -30,7 +30,7 @@ do
             echo "Cant access ${labcomputers[$it]}"
         done
         echo "$i: ${labcomputers[$it]} ${u}"
-        xterm +hold -e ssh "${labcomputers[$it]}" -t "echo hello;hostname;cd $path;$running $u >> ${u}_results.txt 2>> ${u}_error.txt" &
+        xterm -hold -e ssh "${labcomputers[$it]}" -t "cd $path;bash $running $u >> ${u}_${i}_results.txt" &
         let it++
     done    
 done
