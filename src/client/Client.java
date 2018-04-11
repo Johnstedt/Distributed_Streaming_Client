@@ -197,9 +197,12 @@ public class Client {
 
 	private static void printLatencyAndDropRatePerStream(String[] args, List<FrameAccessor> fas) throws IOException {
 		final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
+		double hostsDrop = (double)hosts.length;
+		double hostsLatency = (double)hosts.length;
 
 		double streamDrop;
 		double streamLatency;
+		double temp;
 
 		for (FrameAccessor f : fas) {
 
@@ -207,10 +210,22 @@ public class Client {
 			streamLatency = 0.0;
 
 			for(String h: hosts) {
-				streamDrop += f.getPerformanceStatistics().getPacketDropRate(h);
-				streamLatency += f.getPerformanceStatistics().getPacketLatency(h);
+
+				temp = f.getPerformanceStatistics().getPacketDropRate(h);
+				if(temp != -1.0){
+					streamDrop += temp;
+				}else {
+					hostsDrop--;
+				}
+
+				temp = f.getPerformanceStatistics().getPacketLatency(h);
+				if(temp != -1.0) {
+					streamLatency += temp;
+				} else {
+					hostsLatency--;
+				}
 			}
-			System.out.print(", " + streamDrop/(double)hosts.length + ", " + streamLatency/(double)hosts.length+ "\n");
+			System.out.print(", " + streamDrop/hostsDrop + ", " + streamLatency/hostsLatency+ "\n");
 		}
 	}
 
