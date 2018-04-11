@@ -64,7 +64,7 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
     @Override
     public double getBandwidthUtilization() {
 
-        return (getFrameThroughput() * 768.0 * (double)x  * (double)y);
+        return (getFrameThroughput() * 16*16*3*8 * (double)x  * (double)y);
     }
 
     void setDim(int x, int y){
