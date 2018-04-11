@@ -1,0 +1,33 @@
+table = totnew;
+latency = table2array(table(:,17));
+droprate = table2array(table(:,16));
+user = table2array(table(:,1));
+stream = table2array(table(:,4));
+boxplot(latency,{stream,user},'colors',repmat('rb',1,2));
+legend(findall(gca,'Tag','Box'), {'jwestin','c14jmt'});
+title('Latency');
+xlabel('Stream (#)')
+ylabel('Time(ms)')
+
+
+boxplot(droprate,{stream,user},'colors',repmat('rb',1,2));
+legend(findall(gca,'Tag','Box'), {'jwestin','c14jmt'});
+title('Droprate');
+xlabel('Stream (#)');
+ylabel('Percent');
+
+
+boxplot(band6,{threads6,user},'colors',repmat('rb',1,2));
+legend(findall(gca,'Tag','Box'), {'jwestin','c14jmt'});
+title('Bandwidth for stream 6');
+xlabel('Threads');
+ylabel('Bits per seconds (bps)');
+
+
+
+boxplot(throughput6,{threads6,user},'colors',repmat('rb',1,2));
+legend(findall(gca,'Tag','Box'), {'jwestin','c14jmt'});
+title('Throughput for stream 6');
+xlabel('Threads');
+ylabel('Frame per seconds (fps)');
+
