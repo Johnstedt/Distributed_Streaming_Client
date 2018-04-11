@@ -19,7 +19,7 @@ public class StreamFrame implements client.FrameAccessor.Frame {
 		this.stream = stream;
 		downloaded = new AtomicInteger(x*y);
 	}
-	
+
 	@Override
 	public Block getBlock(int blockX, int blockY) {
 		return this.blocks[blockX][blockY];
