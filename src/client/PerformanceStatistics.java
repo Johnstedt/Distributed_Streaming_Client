@@ -30,7 +30,10 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
             successes = l.size();
         }
         failures = dropRate.getOrDefault(host, 0);
-        if(successes == 0){
+        if(successes == 0 && failures == 0){
+            return -1.0;
+        }
+        else if(successes == 0){
             return 100.0;
         }
         return (double)failures / ((double)failures + (double)successes) * 100.0;
