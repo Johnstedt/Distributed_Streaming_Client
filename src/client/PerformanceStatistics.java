@@ -6,30 +6,42 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Will implement FrameAccessor.PerformanceStatics to get statics.
+ */
 public class PerformanceStatistics implements FrameAccessor.PerformanceStatistics {
 
-    private HashMap<String, List<Long>> latency;
-    private HashMap<String, Integer> dropRate;
-    private AtomicLong start = new AtomicLong(0);
-    private AtomicLong stop = new AtomicLong(0);
-    private AtomicInteger frames;
-    private int x, y;
+    private HashMap<String, List<Long>> blockLatency;
+    private HashMap<String, Integer> blockDropRate;
+    private AtomicLong startTime = new AtomicLong(0);
+    private AtomicLong stopTime = new AtomicLong(0);
+    private AtomicInteger framesDownloaded;
+    private int frameWidth, frameHeight;
 
+    /**
+     * Will start the time performance.
+     */
     public PerformanceStatistics() {
-        latency = new HashMap<>();
-        dropRate = new HashMap<>();
-        frames = new AtomicInteger(0);
+        blockLatency = new HashMap<>();
+        blockDropRate = new HashMap<>();
+        framesDownloaded = new AtomicInteger(0);
+        startTime();
     }
 
+    /**
+     * Get the drop rate percent over downloaded blocks for a host.
+     * @param host  The given host.
+     * @return      The drop rate percent for the host.
+     */
     @Override
     public double getPacketDropRate(String host) {
         int successes = 0;
         int failures;
-        if(latency.containsKey(host)) {
-            List<Long> l = latency.get(host);
+        if(blockLatency.containsKey(host)) {
+            List<Long> l = blockLatency.get(host);
             successes = l.size();
         }
-        failures = dropRate.getOrDefault(host, 0);
+        failures = blockDropRate.getOrDefault(host, 0);
         if(successes == 0 && failures == 0){
             return -1.0;
         }
@@ -39,85 +51,101 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
         return (double)failures / ((double)failures + (double)successes) * 100.0;
     }
 
+    /**
+     * Get the average latency for downloaded blocks for a host.
+     * @param host  The given host.
+     * @return      The average latency for the host.
+     */
     @Override
     public double getPacketLatency(String host) {
-        List<Long> l = latency.getOrDefault(host, new ArrayList<>());
+        List<Long> l = blockLatency.getOrDefault(host, new ArrayList<>());
         long tot = 0;
-        for (long element : l) {
+        for (long element : l)
             tot += element;
-        }
-        if (l.size() == 0 || tot == 0) {
+        if (l.size() == 0 || tot == 0)
             return -1.0;
-        }
         return (double)tot / (double)l.size();
     }
 
+    /**
+     * Get average frame throughput per second for downloaded frames, this
+     * counted for all blocks divided in Frame-size for a more precise match
+     * of the fps.
+     * @return The average Frame Throughput
+     */
     @Override
     public double getFrameThroughput() {
         int lat = 0;
-        for (List<Long> l : latency.values()) {
+        for (List<Long> l : blockLatency.values())
             lat += l.size();
-        }
-        return (double)lat / (double)x / (double)y / ((double)(stop.get() - start.get()) / 1000);
+        return (double)lat / (double) frameWidth / (double) frameHeight / ((double)(stopTime.get() - startTime.get()) / 1000);
     }
 
+    /**
+     * The average bandwidth utilization in bits using average frame throughput.
+     * @return  The average bandwidth.
+     */
     @Override
     public double getBandwidthUtilization() {
-
-        return (getFrameThroughput() * 16*16*3*8 * (double)x  * (double)y);
+        return (getFrameThroughput() * 16*16*3*8 * (double) frameWidth * (double) frameHeight);
     }
 
+    /**
+     * Sets the Frame dimensions.
+     * @param x Width
+     * @param y Height
+     */
     void setDim(int x, int y){
-        this.x = x;
-        this.y = y;
+        this.frameWidth = x;
+        this.frameHeight = y;
     }
 
-    void startTime(){
-        if (start.get() == 0)
-            start.set(System.currentTimeMillis());
+    private void startTime(){
+        if (startTime.get() == 0)
+            startTime.set(System.currentTimeMillis());
     }
 
     synchronized void stopTime() {
-        if (stop.get() == 0) {
-            stop.set(System.currentTimeMillis());
+        if (stopTime.get() == 0) {
+            stopTime.set(System.currentTimeMillis());
 
+            /* For stderr log */
             int successes = 0;
             int failures = 0;
-            for( List<Long> l: latency.values() ){
+            for( List<Long> l: blockLatency.values() ){
                 successes += l.size();
             }
 
-            for(Integer l: dropRate.values()) {
+            for(Integer l: blockDropRate.values()) {
                 failures += l;
             }
-
             System.err.println("Failures: " + failures + "and Successes. " +successes);
-
-         //   System.out.println("PS.stopTime(): Stopped!");
         }
     }
 
-    void addFrame(){
-        if (stop.get() == 0)
-            frames.incrementAndGet();
-    }
-
+    /**
+     * The RRT for a downloaded block on a given host is registered.
+     * @param host                  The given host.
+     * @param timeInMilliseconds    The RRT.
+     */
     void addPacketLatency(String host, long timeInMilliseconds){
         synchronized (this) {
-            if (stop.get() == 0) {
-                List<Long> l = latency.getOrDefault(host, new ArrayList<>());
+            if (stopTime.get() == 0) {
+                List<Long> l = blockLatency.getOrDefault(host, new ArrayList<>());
                 l.add(timeInMilliseconds);
-                //System.err.println("added latency " + host + " "+ timeInMilliseconds);
-                latency.put(host, l);
+                blockLatency.put(host, l);
             }
         }
     }
 
+    /**
+     * Increment the number of timed out for a host.
+     * @param host  The given host.
+     */
     void addTimeOut(String host){
-        if (stop.get() == 0) {
-            int i = dropRate.getOrDefault(host, 0);
-            //System.err.println("new timeout: "+host+" "+(i+1));
-            dropRate.put(host, ++i);
+        if (stopTime.get() == 0) {
+            int i = blockDropRate.getOrDefault(host, 0);
+            blockDropRate.put(host, ++i);
         }
     }
 

@@ -9,76 +9,77 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class Client {
+	static int TIMEOUT = 60;
+	/**
+	 * Will download one given stream. Stderr will show extra data and Stdout presents data in a multi vector.
+	 * @param args	In order: Username, Timeout Socket, FramebufferSize, NoOfClients, Stream.
+	 */
 	public static void main (String[] args) throws SocketException, UnknownHostException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
 		if (args.length != 6) {
-			throw new IllegalArgumentException("<Username:String> <Timeout Socket:Int> <Timeout Program:Int> <Threads:Int> <streams-Start:Int[,]:(1-10)> <streams-End:Int[,]:(1-10)>, given:"+args.length);
+			throw new IllegalArgumentException("<Username:String> <Timeout socket:Int> <Frame bufferSize:Int> <Number of Clients:Int> <Stream number:Int[,]:(1-10)>, given:"+args.length);
 		}
 		String username = args[0];
-    int timeout     = Integer.parseInt(args[1]);
-    int time = Integer.parseInt(args[2]);
-		int noOfThreads = Integer.parseInt(args[3]);
-		List<Integer> streams = IntStream.rangeClosed(Integer.parseInt(args[4]), Integer.parseInt(args[5])).boxed().collect(Collectors.toList());
+		int timeoutSocket = Integer.parseInt(args[1]);
+		int frameBuffer = Integer.parseInt(args[2]);
+		int clients = Integer.parseInt(args[3]);
+		int stream = Integer.parseInt(args[4]);
 
 		System.err.println("Username: "+username);
-		System.err.println("Timeout: "+timeout);
-		System.err.println("Program time: "+time);
-		System.err.println("Threads: "+ noOfThreads);
-		System.err.println("StreamArray: "+ Arrays.toString(streams.toArray()));
+		System.err.println("Timeout socket: "+ timeoutSocket);
+		System.err.println("Program frameBuffer: "+ frameBuffer);
+		System.err.println("Clients: "+ clients);
+		System.err.println("Stream: "+ stream);
+		System.out.print(username + ", " + timeoutSocket + ", " + frameBuffer + ", " + clients +  ", " + stream);
 
-		System.out.print(username + ", " + timeout + ", " + time + ", " + noOfThreads +  ", " + Arrays.toString(streams.toArray()));
 
-
-		/* Get all info */
-		List<FrameAccessor> fas = startAllClients(streams, noOfThreads, timeout, username);
-
-		while(time > 0) {
+		/* Download from the stream for TIMEOUT seconds. */
+		FrameAccessor fas = startAllClients(stream, clients, timeoutSocket, username);
+		int time = 0;
+		while(time > TIMEOUT) {
 			try {
 				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			//System.out.println("Time:" +time--);
-			time--;
+				time--;
+			} catch (InterruptedException ignored) {}
 		}
 
 
-		printOnlyThroughputBandWidth(args, fas);
-		printLatencyAndDropratePerHost(args, fas);
+		printOnlyThroughputBandWidth(fas);
+		printLatencyAndDropratePerHost(fas);
 		try {
-			printLatencyAndDropRatePerStream(args, fas);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		System.exit(127);
+			printLatencyAndDropRatePerStream(fas);
+		} catch (IOException ignored) {}
+		System.exit(0);
 	}
 
-	private static List<FrameAccessor> startAllClients(List<Integer> streams, int threads, int timeout, String username) {
+	/**
+	 * Will start number of clients given.
+	 * @param stream    The stream that the clients belong to
+	 * @param clients   Number of clients.
+	 * @param timeout   The socket timeout in ms.
+	 * @param username  The username used in the Client.
+	 * @return  List of created
+	 */
+	private static FrameAccessor startAllClients(int stream, int clients, int timeout, String username) {
 		List<FrameAccessor> fas = new LinkedList<>();
 		final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
-		for (Integer t: streams) {
+
 			FrameAccessor fa = null;
-			for (int i = 0; i < threads; i++) {
-                //System.out.println("Thread :"+i +" for stream "+t);
-                String h = hosts[i % hosts.length];
+			for (int i = 0; i < clients; i++) {
+				String h = hosts[i % hosts.length];
 				StreamServiceClient c = null;
 				try {
 					c = DefaultStreamServiceClient.bind(h, timeout, username);
 				} catch (SocketException | UnknownHostException e) {
 					e.printStackTrace();
 				}
-				fa = FrameInfoFactory.getInstance().getFrameAccessor(c, "stream"+t);
+				fa = FrameInfoFactory.getInstance().getFrameAccessor(c, "stream"+stream);
 			}
-			fas.add(fa);
-		}
-		return fas;
+		return fa;
 	}
 
 	/**
@@ -137,6 +138,15 @@ public class Client {
 		System.out.println("]");
 	}
 
+	/**
+	 * Will update a average for each value of each host of given method for a FrameAccessor.
+	 * @param method	The method used to get more method.
+	 * @param f				The frameAccessor.
+	 * @param map			The hashmap that will be updated.
+	 * @param hosts		The hosts.
+	 * @throws InvocationTargetException
+	 * @throws IllegalAccessException
+	 */
 	private static void updateSome(Method method, FrameAccessor f, HashMap<String, Double> map, String[] hosts) throws InvocationTargetException, IllegalAccessException {
 		for (String h : hosts) {
 			double newValue = 0.0;
@@ -151,20 +161,26 @@ public class Client {
 		}
 	}
 
-	private static void printOnlyThroughputBandWidth(String[] args, List<FrameAccessor> fas){
+	/**
+	 * Prints Throughput and bandwidth for each FrameAccessor to stdout
+	 * @param fas FrameAccessors (per Stream)
+	 */
+	private static void printOnlyThroughputBandWidth(FrameAccessor fas){
 		double bandwidth = 0.0;
 		double throughput = 0.0;
-		for (FrameAccessor f : fas){
-			bandwidth  += f.getPerformanceStatistics().getBandwidthUtilization();
-			throughput += f.getPerformanceStatistics().getFrameThroughput();
-		}
+		bandwidth  += fas.getPerformanceStatistics().getBandwidthUtilization();
+		throughput += fas.getPerformanceStatistics().getFrameThroughput();
 
 		System.out.print(", " + bandwidth );
 		System.out.print(", " + throughput );
 
 	}
 
-	private static void printLatencyAndDropratePerHost(String[] args, List<FrameAccessor> fas) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+	/**
+	 * Prints Latency and drop rate per host.
+	 * @param fas	FrameAccessors
+	 */
+	private static void printLatencyAndDropratePerHost(FrameAccessor fas) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
 		final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
 		HashMap<String, Double> dropRate = new HashMap<>();
 		HashMap<String, Double> latency = new HashMap<>();
@@ -174,14 +190,10 @@ public class Client {
 			latency.put(h, 0.0);
 		}
 
-		for (FrameAccessor f : fas) {
-
-			Method m = FrameAccessor.PerformanceStatistics.class.getMethod("getPacketDropRate", String.class);
-			updateSome(m, f, dropRate, hosts);
-			m = FrameAccessor.PerformanceStatistics.class.getMethod("getPacketLatency", String.class);
-			updateSome(m, f, latency, hosts);
-
-		}
+    Method m = FrameAccessor.PerformanceStatistics.class.getMethod("getPacketDropRate", String.class);
+    updateSome(m, fas, dropRate, hosts);
+    m = FrameAccessor.PerformanceStatistics.class.getMethod("getPacketLatency", String.class);
+    updateSome(m, fas, latency, hosts);
 
 
 		for (String h : hosts) {
@@ -195,38 +207,34 @@ public class Client {
 
 	}
 
-	private static void printLatencyAndDropRatePerStream(String[] args, List<FrameAccessor> fas) throws IOException {
+	/**
+	 * Prints Latency and drop rate per stream.
+	 * @param fas	List of created FrameAccessors
+	 */
+	private static void printLatencyAndDropRatePerStream(FrameAccessor fas) throws IOException {
 		final String[] hosts = StreamServiceDiscovery.SINGLETON.findHosts();
 		double hostsDrop = (double)hosts.length;
 		double hostsLatency = (double)hosts.length;
 
-		double streamDrop;
-		double streamLatency;
-		double temp;
+		double streamDrop = 0.0;
+		double streamLatency = 0.0;
+    for(String h: hosts) {
+      double temp = fas.getPerformanceStatistics().getPacketDropRate(h);
+      if(temp != -1.0){
+        streamDrop += temp;
+      }else {
+        hostsDrop--;
+      }
 
-		for (FrameAccessor f : fas) {
+      temp = fas.getPerformanceStatistics().getPacketLatency(h);
+      if(temp != -1.0) {
+        streamLatency += temp;
+      } else {
+        hostsLatency--;
+      }
+    }
+    System.out.print(", " + streamDrop/hostsDrop + ", " + streamLatency/hostsLatency+ "\n");
 
-			streamDrop = 0.0;
-			streamLatency = 0.0;
-
-			for(String h: hosts) {
-
-				temp = f.getPerformanceStatistics().getPacketDropRate(h);
-				if(temp != -1.0){
-					streamDrop += temp;
-				}else {
-					hostsDrop--;
-				}
-
-				temp = f.getPerformanceStatistics().getPacketLatency(h);
-				if(temp != -1.0) {
-					streamLatency += temp;
-				} else {
-					hostsLatency--;
-				}
-			}
-			System.out.print(", " + streamDrop/hostsDrop + ", " + streamLatency/hostsLatency+ "\n");
-		}
 	}
 
 }
