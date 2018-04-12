@@ -11,13 +11,15 @@ public class StreamFrame implements client.FrameAccessor.Frame {
 	private final String stream;
 	private int id;
 	private Block[][] blocks;
-	private AtomicInteger downloaded;
+	private AtomicInteger blocksLeftToDownload;
+	private AtomicInteger disregarded;
 
 	StreamFrame(int id, String stream, int x, int y){
 		this.id = id;
 		this.blocks = new Block[x][y];
 		this.stream = stream;
-		downloaded = new AtomicInteger(x*y);
+		this.blocksLeftToDownload = new AtomicInteger(x*y);
+		this.disregarded = new AtomicInteger(0);
 	}
 
 	@Override
@@ -26,15 +28,22 @@ public class StreamFrame implements client.FrameAccessor.Frame {
 	}
 
 	int downloadBlock(StreamServiceClient c, int x, int y) throws IOException {
-
 		while(true) {
 			try {
 				this.blocks[x][y] = c.getBlock(stream, id, x, y);
-				return downloaded.decrementAndGet();
-
+				return blocksLeftToDownload.decrementAndGet();
 			} catch (ClassCastException e) {
 				System.err.println("Cannot cast nothing that was not never gotten");
 			}
 		}
+	}
+
+	void disregardBlock() {
+		blocksLeftToDownload.decrementAndGet();
+		disregarded.decrementAndGet();
+	}
+
+	int blocksLeftToDownload() {
+		return blocksLeftToDownload.get();
 	}
 }

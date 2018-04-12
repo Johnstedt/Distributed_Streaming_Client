@@ -9,55 +9,78 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class Client {
+	public String username;
+	private static Client instance  = null;
+	Client() {
+	}
+	public static Client getInstance() {
+		if (instance == null) {
+			instance = new Client();
+		}
+		return instance;
+	}
+
+
+
 	public static void main (String[] args) throws SocketException, UnknownHostException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
 		if (args.length != 6) {
-			throw new IllegalArgumentException("<Username:String> <Timeout Socket:Int> <Timeout Program:Int> <Threads:Int> <streams-Start:Int[,]:(1-10)> <streams-End:Int[,]:(1-10)>, given:"+args.length);
+			throw new IllegalArgumentException("<Username:String> <Timeout socket:Int> <Frame buffer:Int> <Threads:Int> <stream:Int[,]:(1-10)>, given:"+args.length);
 		}
 		String username = args[0];
-    int timeout     = Integer.parseInt(args[1]);
-    int time = Integer.parseInt(args[2]);
+    int timeoutSocket = Integer.parseInt(args[1]);
+    int frameBuffer = Integer.parseInt(args[2]);
 		int noOfThreads = Integer.parseInt(args[3]);
-		List<Integer> streams = IntStream.rangeClosed(Integer.parseInt(args[4]), Integer.parseInt(args[5])).boxed().collect(Collectors.toList());
+		int stream = Integer.parseInt(args[4]);
 
 		System.err.println("Username: "+username);
-		System.err.println("Timeout: "+timeout);
-		System.err.println("Program time: "+time);
+		System.err.println("Timeout socket: "+ timeoutSocket);
+		System.err.println("Program frameBuffer: "+ frameBuffer);
 		System.err.println("Threads: "+ noOfThreads);
-		System.err.println("StreamArray: "+ Arrays.toString(streams.toArray()));
-
-		System.out.print(username + ", " + timeout + ", " + time + ", " + noOfThreads +  ", " + Arrays.toString(streams.toArray()));
+		System.err.println("Stream: "+ stream);
+		Client.getInstance().username = username;
+		System.out.print(username + ", " + timeoutSocket + ", " + frameBuffer + ", " + noOfThreads +  ", " + stream);
 
 
 		/* Get all info */
-		List<FrameAccessor> fas = startAllClients(streams, noOfThreads, timeout, username);
+		List<Integer> streams = new LinkedList<>();
+		streams.add(stream);
 
-		while(time > 0) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			//System.out.println("Time:" +time--);
-			time--;
+		List<FrameAccessor> fas = startAllClients(streams, noOfThreads, timeoutSocket, username);
+
+		FrameAccessor f = fas.get(0);
+		long start = System.currentTimeMillis();
+		int getNext = 0;
+		double[] framedata = new double[100];
+		boolean done = false;
+		while (!done) {
+			/* Because of Exceptions that never happens we will while-loop the trycatch */
+			boolean gotFrame = false;
+			while(!gotFrame) {try {f.getFrame(getNext);gotFrame = true;} catch (IOException e) {}}
+			framedata[getNext] =  ((double)(System.currentTimeMillis() - start) / 1000.0);
+			System.err.println("Got frame "+getNext);
+			if (++getNext == 100)
+				done = true;
 		}
-
+		f.getPerformanceStatistics();
 
 		printOnlyThroughputBandWidth(args, fas);
 		printLatencyAndDropratePerHost(args, fas);
+		System.out.print(",[");
 		try {
 			printLatencyAndDropRatePerStream(args, fas);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		System.exit(127);
+		for (double theFrameData : framedata) {
+			System.out.print(","+theFrameData);
+		}
+		System.out.println("]");
+		System.exit(0);
 	}
 
 	private static List<FrameAccessor> startAllClients(List<Integer> streams, int threads, int timeout, String username) {
@@ -134,7 +157,7 @@ public class Client {
 		for (String h : hosts) {
 			System.out.print(Double.toString(latency.get(h)) + ";");
 		}
-		System.out.println("]");
+		System.out.print("]");
 	}
 
 	private static void updateSome(Method method, FrameAccessor f, HashMap<String, Double> map, String[] hosts) throws InvocationTargetException, IllegalAccessException {
@@ -188,9 +211,11 @@ public class Client {
 			System.out.print(", " +Double.toString(dropRate.get(h)));
 		}
 
+		System.out.print("[");
 		for (String h : hosts) {
 			System.out.print(", " +Double.toString(latency.get(h)));
 		}
+		System.out.println("]");
 
 
 	}
@@ -225,7 +250,7 @@ public class Client {
 					hostsLatency--;
 				}
 			}
-			System.out.print(", " + streamDrop/hostsDrop + ", " + streamLatency/hostsLatency+ "\n");
+			System.out.print(", " + streamDrop/hostsDrop + ", " + streamLatency/hostsLatency);
 		}
 	}
 
