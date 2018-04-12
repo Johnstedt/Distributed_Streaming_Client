@@ -2,33 +2,35 @@ package client;
 
 import ki.types.ds.StreamInfo;
 import se.umu.cs._5dv186.a1.client.StreamServiceClient;
-import sun.awt.Mutex;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ *
+ */
 public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 	private String stream;
 	private LinkedList<StreamServiceClient> clients;
 	private HashMap<Integer, StreamFrame> frames;
 	private StreamInfo streamInfo;
-	private LinkedList<Thread> threads = new LinkedList<>();
+	private LinkedList<Thread> threads;
 
-
-	Mutex get = new Mutex();
-	private int readuntil = 0;
-	private int current = 0;
+	private AtomicInteger readBlocksUntil, current;
 
 	public FrameInfo(String stream){
 		super();
     streamInfo = null;
-		startTime();
-		System.err.println("Creating FrameInfo for stream: "+stream);
-		this.stream = stream;
+		threads = new LinkedList<>();
+		readBlocksUntil = new AtomicInteger(0);
+		current = new AtomicInteger(0);
 		clients = new LinkedList<>();
 		frames = new HashMap<>();
+		this.stream = stream;
+		startTime();
 
 	}
 
@@ -54,9 +56,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 
 	@Override
 	public Frame getFrame(int frame) throws IOException, SocketTimeoutException {
-		get.lock();
-		readuntil += streamInfo.getHeightInBlocks()*streamInfo.getWidthInBlocks();
-		get.unlock();
+		readBlocksUntil.set(streamInfo.getHeightInBlocks()*streamInfo.getWidthInBlocks());
 		return frames.get(frame);
 
 	}
@@ -80,10 +80,8 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 					}
 				}
 				setDim(streamInfo.getWidthInBlocks(), streamInfo.getHeightInBlocks());
-				get.lock();
-				current = 0;
-				readuntil = streamInfo.getWidthInBlocks() * streamInfo.getHeightInBlocks() * 100;
-				get.unlock();
+				//Get the first 100 Frames
+				readBlocksUntil.set(streamInfo.getWidthInBlocks() * streamInfo.getHeightInBlocks() * 100);
 			} catch (IOException e) {
 				System.err.println("Cant get streaminfo from "+c.getHost()+"! Cause:"+e.getLocalizedMessage());
 				return false;
@@ -100,46 +98,48 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 				} catch (InterruptedException e) {}
 			}
 
-
 		while(!Thread.interrupted()) {
-			get.lock();
-			int blockIndex = current++;
-			get.unlock();
-			int frameIndex = (int) Math.floor((double)blockIndex / (double)(streamInfo.getHeightInBlocks() *streamInfo.getWidthInBlocks()));
-			if (frameIndex > streamInfo.getLengthInFrames()) {
-				System.err.println("Got em all!");
-				stopTime();
-				return;
-			}
-			StreamFrame f = null;
-			synchronized (this) {
-				if (!frames.containsKey(frameIndex)){
-					f = new StreamFrame(frameIndex, stream, streamInfo.getWidthInBlocks(), streamInfo.getHeightInBlocks());
-					frames.put(frameIndex, f);
-				} else {
-					f = frames.get(frameIndex);
-				}
-			}
+			int blockIndex = current.getAndIncrement();
+			downloadBlock(c, blockIndex);
+		}
+	}
 
-			while (!Thread.interrupted()) {
-				try {
+	private void downloadBlock(StreamServiceClient c, int blockIndex) {
+		int frameIndex = (int) Math.floor((double)blockIndex / (double)(streamInfo.getHeightInBlocks() *streamInfo.getWidthInBlocks()));
+		if (frameIndex > streamInfo.getLengthInFrames()) {
+			System.err.println("Got em all!");
+			stopTime();
+			return;
+		}
 
-					int framestart = frameIndex > 0 ? (frameIndex*streamInfo.getWidthInBlocks()*streamInfo.getHeightInBlocks()) : 0;
-					int x = (blockIndex - framestart) / streamInfo.getHeightInBlocks();
-					int y = (blockIndex - framestart) % streamInfo.getHeightInBlocks();
+		StreamFrame f = null;
+		synchronized (this) {
+			if (!frames.containsKey(frameIndex)){
+				f = new StreamFrame(frameIndex, stream, streamInfo.getWidthInBlocks(), streamInfo.getHeightInBlocks());
+				frames.put(frameIndex, f);
+			} else {
+				f = frames.get(frameIndex);
+			}
+		}
+
+		while (!Thread.interrupted()) {
+			try {
+
+				int framestart = frameIndex > 0 ? (frameIndex*streamInfo.getWidthInBlocks()*streamInfo.getHeightInBlocks()) : 0;
+				int x = (blockIndex - framestart) / streamInfo.getHeightInBlocks();
+				int y = (blockIndex - framestart) % streamInfo.getHeightInBlocks();
 				//	System.err.println("frameIndex: " + frameIndex + ", x: "+x + " , y: "+y +", framestart: " +framestart +", block:"+blockIndex + " ["+streamInfo.getWidthInBlocks()+"x"+ streamInfo.getHeightInBlocks()+"]");
-					long time = System.currentTimeMillis();
-					if (f.downloadBlock(c, x, y)==0) {
-						addFrame();
-					}
-					time = System.currentTimeMillis() - time;
-					addPacketLatency(c.getHost(), time);
-					break;
-				} catch (SocketTimeoutException e) {
-					addTimeOut(c.getHost());
-				} catch (IOException e) {
-					System.out.println("some IO error.");
+				long time = System.currentTimeMillis();
+				if (f.downloadBlock(c, x, y)==0) {
+					addFrame();
 				}
+				time = System.currentTimeMillis() - time;
+				addPacketLatency(c.getHost(), time);
+				break;
+			} catch (SocketTimeoutException e) {
+				addTimeOut(c.getHost());
+			} catch (IOException e) {
+				System.out.println("some IO error.");
 			}
 		}
 	}
