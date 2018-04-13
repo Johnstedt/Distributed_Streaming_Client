@@ -31,3 +31,13 @@ title('Throughput for stream 6');
 xlabel('Threads');
 ylabel('Frame per seconds (fps)');
 
+
+droprate = table2array(improvcomp(:,9));
+user = table2array(improvcomp(:,1));
+type = table2array(improvcomp(:,2));
+boxplot(droprate,{type,user},'colors',repmat('rb',1,2));
+legend(findall(gca,'Tag','Box'), {'jwestin','c14jmt'});
+title('Droprate');
+xlabel('Stream (#)');
+ylabel('Percent');
+
