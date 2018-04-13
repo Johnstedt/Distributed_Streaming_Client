@@ -14,40 +14,43 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class Client {
-	static int TIMEOUT = 60;
+	static int TIMEOUT = 10;
 	/**
 	 * Will download one given stream. Stderr will show extra data and Stdout presents data in a multi vector.
 	 * @param args	In order: Username, Timeout Socket, FramebufferSize, NoOfClients, Stream.
 	 */
 	public static void main (String[] args) throws SocketException, UnknownHostException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-		if (args.length != 6) {
-			throw new IllegalArgumentException("<Username:String> <Timeout socket:Int> <Frame bufferSize:Int> <Number of Clients:Int> <Stream number:Int[,]:(1-10)>, given:"+args.length);
+		if (args.length < 1 || args.length > 5) {
+			throw new IllegalArgumentException("<Username:String>(REQUIRED) <Timeout socket:Int> <timeoutProgram:Int> <Number of Clients:Int> <Stream number:Int[,]:(1-10)>!");
 		}
 		String username = args[0];
-		int timeoutSocket = Integer.parseInt(args[1]);
-		int frameBuffer = Integer.parseInt(args[2]);
-		int clients = Integer.parseInt(args[3]);
-		int stream = Integer.parseInt(args[4]);
+		int timeoutSocket = (args.length > 1) ? Integer.parseInt(args[1]) : 1000;
+		int timeoutProgram = (args.length > 2) ? Integer.parseInt(args[2]) : 60;
+		int clients = (args.length > 3) ? Integer.parseInt(args[3]) : 50;
+		int stream = (args.length > 4) ? Integer.parseInt(args[4]) : 6;
 
 		System.err.println("Username: "+username);
 		System.err.println("Timeout socket: "+ timeoutSocket);
-		System.err.println("Program frameBuffer: "+ frameBuffer);
+		System.err.println("Timeout program: "+ timeoutProgram);
 		System.err.println("Clients: "+ clients);
 		System.err.println("Stream: "+ stream);
-		System.out.print(username + ", " + timeoutSocket + ", " + frameBuffer + ", " + clients +  ", " + stream);
-
 
 		/* Download from the stream for TIMEOUT seconds. */
 		FrameAccessor fas = startAllClients(stream, clients, timeoutSocket, username);
 		int time = 0;
-		while(time > TIMEOUT) {
+		while(time < timeoutProgram) {
 			try {
 				Thread.sleep(1000);
-				time--;
+				time++;
+				System.err.println("Time running: "+time+" of "+timeoutProgram);
 			} catch (InterruptedException ignored) {}
 		}
+		//This will stop the statistics-calculations.
+		fas.getPerformanceStatistics();
 
-
+		System.err.println("Will now print result log to stdout in the following csv-order:");
+		System.err.println("user,timeoutSocket,timeoutProgram,threads,stream,bandwidth,throughput,droprate-belatrix,droprate-dobby,droprate-draco,droprate-harry,latency-belatrix,latency-dobby,latency-draco,latency-harry,droprate-total,latency-total");
+		System.out.print(username + ", " + timeoutSocket + ", " + timeoutProgram + ", " + clients +  ", " + stream);
 		printOnlyThroughputBandWidth(fas);
 		printLatencyAndDropratePerHost(fas);
 		try {

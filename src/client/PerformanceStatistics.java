@@ -119,7 +119,8 @@ public class PerformanceStatistics implements FrameAccessor.PerformanceStatistic
             for(Integer l: blockDropRate.values()) {
                 failures += l;
             }
-            System.err.println("Failures: " + failures + "and Successes. " +successes);
+            System.err.println("Successes download blocks: " +successes);
+            System.err.println("Failures download blocks:" + failures);
         }
     }
 

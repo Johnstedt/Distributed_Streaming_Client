@@ -97,13 +97,13 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 				for (StreamInfo s : c.listStreams()) {
 					if (s.getName().equals(stream)) {
 						streamInfo = s;
+						frameHeight = streamInfo.getHeightInBlocks();
+						frameWidth = streamInfo.getWidthInBlocks();
+						setDim(frameWidth, frameHeight);
+						//Initialize to get the first 100 Frames
+						downloadBlocksUntil.set(streamInfo.getWidthInBlocks() * streamInfo.getHeightInBlocks() * 100);
 					}
 				}
-				setDim(streamInfo.getWidthInBlocks(), streamInfo.getHeightInBlocks());
-				frameHeight = streamInfo.getHeightInBlocks();
-				frameWidth = streamInfo.getWidthInBlocks();
-				//Initialize to get the first 100 Frames
-				downloadBlocksUntil.set(streamInfo.getWidthInBlocks() * streamInfo.getHeightInBlocks() * 100);
 			} catch (IOException e) {
 				System.err.println("Cant get streaminfo from "+c.getHost()+"! Cause:"+e.getLocalizedMessage());
 				return false;
@@ -117,6 +117,7 @@ public class FrameInfo  extends PerformanceStatistics implements FrameAccessor{
 
 		/* Finished all blocks */
 		if (frameIndex > streamInfo.getLengthInFrames()) {
+			System.err.println("Got all frames, stop statistics");
 			getPerformanceStatistics();
 			return;
 		}
